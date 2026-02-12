@@ -1130,6 +1130,7 @@ public class DecompilerProvider extends NavigatableComponentProviderAdapter
 		DebugDecompilerAction debugFunctionAction = new DebugDecompilerAction(controller);
 		ExportToCAction convertAction = new ExportToCAction();
 		ExportAllDecompiledAction exportAllAction = new ExportAllDecompiledAction();
+		ExportCCodeAction exportCCodeAction = new ExportCCodeAction();
 		CloneDecompilerAction cloneDecompilerAction = new CloneDecompilerAction();
 		GoToNextBraceAction goToNextBraceAction = new GoToNextBraceAction();
 		GoToPreviousBraceAction goToPreviousBraceAction = new GoToPreviousBraceAction();
@@ -1186,6 +1187,7 @@ public class DecompilerProvider extends NavigatableComponentProviderAdapter
 		addLocalAction(displayTypeCastsAction);
 		addLocalAction(convertAction);
 		addLocalAction(exportAllAction);
+		addLocalAction(exportCCodeAction);
 		addLocalAction(findAction);
 		addLocalAction(findReferencesAction);
 		addLocalAction(propertiesAction);

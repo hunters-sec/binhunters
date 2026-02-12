@@ -4,6 +4,65 @@ All notable changes to Binhunters (forked from NSA Ghidra 12.1) are documented h
 
 ---
 
+## Phase 10: Variable Tracker, Export C Code, Language Detection
+
+### Variable Tracker Plugin
+
+**Problem:** No way to identify which global variables are shared across multiple functions, or to see data dependencies between functions at a glance.
+
+### Changes
+
+- **`Ghidra/Features/Base/src/main/java/ghidra/app/plugin/core/variabletracker/VariableTrackerPlugin.java`** (NEW)
+  - Plugin shell for the Variable Tracker
+
+- **`Ghidra/Features/Base/src/main/java/ghidra/app/plugin/core/variabletracker/VariableTrackerProvider.java`** (NEW)
+  - Three-tab panel:
+    - **Global Variables**: Scans all global data and shows which functions reference each variable, sorted by usage count
+    - **Current Function**: Shows parameters (with caller info), local variables, global data accessed (with color-coded sharing indicators), strings referenced, and data connections to other functions
+    - **Shared Data**: Filters to variables used by 2+ functions — key data dependencies
+  - Color-coded usage: Red (10+ functions), Orange (5-9), Blue (2-4)
+  - Background analysis with thread-safe UI updates
+  - Menu actions under `Analysis > Variable Tracker`
+
+### Export C Code Action
+
+**Problem:** No way to export the entire binary as a single readable C file with proper type definitions and function prototypes.
+
+- **`Ghidra/Features/Decompiler/src/main/java/ghidra/app/plugin/core/decompile/actions/ExportCCodeAction.java`** (NEW)
+  - Three export modes via dialog:
+    - **Entire Binary (single file)**: All functions in one `.c` file with headers, type definitions, forward declarations, and implementations sorted by address
+    - **By Namespace**: One `.c` file per namespace/class plus shared `types.h`
+    - **Current Function**: Quick export of the displayed function
+  - Includes language detection, binary metadata in file header
+  - Parallel decompilation for performance
+
+- **`Ghidra/Features/Decompiler/src/main/java/ghidra/app/plugin/core/decompile/DecompilerProvider.java`**
+  - Registered `ExportCCodeAction` alongside existing export actions
+
+### Source Language Detection
+
+**Problem:** Analysts couldn't quickly determine what language a binary was compiled from.
+
+- **`Ghidra/Features/Base/src/main/java/ghidra/app/plugin/core/triage/TriageProvider.java`**
+  - Added `detectSourceLanguage()` method
+  - Analyzes symbol patterns (C++ mangling, ObjC messaging, Swift/Rust/Go conventions)
+  - Checks section names for language-specific sections
+  - Detects: C, C++, Objective-C, Swift, Rust, Go, Java/Kotlin (DEX), C#/.NET
+  - Shows confidence level (high/medium/low)
+  - Added "Source Language" row to Binary Metadata section
+  - Renamed "Language" to "Architecture" for clarity
+
+### Configuration & Documentation
+
+- **`Ghidra/Configurations/Public_Release/src/main/resources/defaultTools/CodeBrowser.tool`**
+  - Added Variable Tracker package and component
+
+- **`Ghidra/Features/Base/src/main/java/ghidra/app/plugin/core/documentation/DocumentationContent.java`**
+  - Added documentation for Variable Tracker, Export C Code, and Language Detection
+  - Updated welcome page with new features
+
+---
+
 ## Phase 1: C++ Decompiler Quality Improvements
 
 ### Problem

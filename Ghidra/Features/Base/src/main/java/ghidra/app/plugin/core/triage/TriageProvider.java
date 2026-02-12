@@ -122,8 +122,9 @@ public class TriageProvider extends ComponentProviderAdapter {
 
 		addInfoRow(panel, "Name", program.getName());
 		addInfoRow(panel, "Format", program.getExecutableFormat());
-		addInfoRow(panel, "Language",
+		addInfoRow(panel, "Architecture",
 			program.getLanguage().getLanguageDescription().getDescription());
+		addInfoRow(panel, "Source Language", detectSourceLanguage());
 		addInfoRow(panel, "Compiler", program.getCompilerSpec().getCompilerSpecID().toString());
 		addInfoRow(panel, "Endianness",
 			program.getLanguage().isBigEndian() ? "Big Endian" : "Little Endian");
@@ -141,6 +142,128 @@ public class TriageProvider extends ComponentProviderAdapter {
 
 		contentPanel.add(panel);
 		contentPanel.add(Box.createVerticalStrut(8));
+	}
+
+	// -----------------------------------------------------------------------
+	// Source Language Detection
+	// -----------------------------------------------------------------------
+
+	/**
+	 * Detect the likely source language of the binary by analyzing symbols,
+	 * section names, and import patterns.
+	 */
+	private String detectSourceLanguage() {
+		SymbolTable symTab = program.getSymbolTable();
+		String format = program.getExecutableFormat();
+
+		int objcCount = 0;
+		int cppCount = 0;
+		int swiftCount = 0;
+		int rustCount = 0;
+		int goCount = 0;
+
+		// Scan symbols for language indicators
+		SymbolIterator symbols = symTab.getAllSymbols(true);
+		int scanned = 0;
+		while (symbols.hasNext() && scanned < 5000) {
+			Symbol sym = symbols.next();
+			String name = sym.getName();
+			scanned++;
+
+			// Objective-C indicators
+			if (name.startsWith("_objc_") || name.startsWith("objc_msg") ||
+				(name.contains("@") && name.contains(":")) ||
+				name.startsWith("+[") || name.startsWith("-[") ||
+				name.startsWith("_OBJC_")) {
+				objcCount++;
+			}
+			// C++ indicators (mangled names)
+			else if (name.startsWith("_Z") || name.startsWith("__Z") ||
+				name.contains("::") || name.startsWith("std__") ||
+				name.contains("__cxa_") || name.contains("vtable")) {
+				cppCount++;
+			}
+			// Swift indicators
+			else if (name.startsWith("_$s") || name.startsWith("$s") ||
+				name.contains("Swift") || name.startsWith("_swift_")) {
+				swiftCount++;
+			}
+			// Rust indicators
+			else if (name.contains("$LT$") || name.contains("$GT$") ||
+				name.contains("core..") || name.contains("alloc..") ||
+				name.contains("__rust_")) {
+				rustCount++;
+			}
+			// Go indicators
+			else if (name.startsWith("go.") || name.startsWith("runtime.") ||
+				name.startsWith("main.main")) {
+				goCount++;
+			}
+		}
+
+		// Check memory sections for language-specific sections
+		for (ghidra.program.model.mem.MemoryBlock block : program.getMemory().getBlocks()) {
+			String blockName = block.getName().toLowerCase();
+			if (blockName.contains("objc") || blockName.equals("__cfstring")) {
+				objcCount += 5;
+			}
+			if (blockName.contains("swift")) {
+				swiftCount += 5;
+			}
+			if (blockName.contains("gopclntab") || blockName.equals(".gosymtab")) {
+				goCount += 10;
+			}
+		}
+
+		// Check format-specific patterns
+		if (format != null) {
+			String fmtLower = format.toLowerCase();
+			if (fmtLower.contains("dex") || fmtLower.contains("dalvik")) {
+				return "Java/Kotlin (Android DEX)";
+			}
+			if (fmtLower.contains("class")) {
+				return "Java (JVM Bytecode)";
+			}
+			if (fmtLower.contains(".net") || fmtLower.contains("cli")) {
+				return "C#/.NET";
+			}
+		}
+
+		// Determine dominant language
+		Map<String, Integer> scores = new LinkedHashMap<>();
+		scores.put("Objective-C", objcCount);
+		scores.put("C++", cppCount);
+		scores.put("Swift", swiftCount);
+		scores.put("Rust", rustCount);
+		scores.put("Go", goCount);
+
+		String bestLang = "C";
+		int bestScore = 0;
+		for (Map.Entry<String, Integer> entry : scores.entrySet()) {
+			if (entry.getValue() > bestScore) {
+				bestScore = entry.getValue();
+				bestLang = entry.getKey();
+			}
+		}
+
+		// Require minimum confidence
+		if (bestScore < 3) {
+			bestLang = "C";
+		}
+
+		// Build result with confidence
+		StringBuilder result = new StringBuilder(bestLang);
+		if (bestScore >= 20) {
+			result.append(" (high confidence)");
+		}
+		else if (bestScore >= 5) {
+			result.append(" (medium confidence)");
+		}
+		else if (bestScore >= 3) {
+			result.append(" (low confidence)");
+		}
+
+		return result.toString();
 	}
 
 	// -----------------------------------------------------------------------

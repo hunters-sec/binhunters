@@ -27,10 +27,29 @@ Binhunters isn't a plugin or extension — it's a **source-level fork** of Ghidr
 - Shows function signature, callers, callees, local variables, and referenced strings for the current cursor position
 - No more switching between five different panels to get basic context
 
+### Variable Tracker
+- Identifies global variables shared across multiple functions
+- **Global Variables** tab: all globals sorted by usage count with color-coded importance
+- **Current Function** tab: parameters, locals, global data accessed, strings, and data connections
+- **Shared Data** tab: variables used by 2+ functions — key dependencies between code sections
+- Red = used by 10+ functions, Orange = 5-9, Blue = 2-4
+
+### Export C Code
+- **Entire Binary as Single File**: All decompiled functions in one `.c` file with type definitions, forward declarations, and organized implementations
+- **By Namespace**: One `.c` file per class/namespace plus shared `types.h`
+- **Current Function**: Quick export of just what you're looking at
+- Includes binary metadata, language detection, and proper C headers
+
 ### Bulk Export
 - `File > Export All Decompiled Code` exports every function's decompiled C to an organized directory tree
 - Outputs organized by namespace, category, imports, strings, and types
 - Feed directly into external analysis tools, grep, or LLMs
+
+### Source Language Detection
+- Automatically identifies the source language: C, C++, Objective-C, Swift, Rust, Go, Java/Kotlin, C#/.NET
+- Analyzes symbol patterns, section names, and import libraries
+- Shows confidence level (high/medium/low) in the Triage Panel
+- Used in exports for proper file headers
 
 ### Enhanced Graphs
 - **Function Graph**: Working edge strokes (dashed=conditional, thick=unconditional, thin=fallthrough) + **T/F branch labels**
@@ -199,7 +218,7 @@ Binhunters modifies Ghidra at the source level across multiple layers:
 | **Function Graph** (Jung) | `FGEdgeRenderer`, `FunctionGraphFactory` | Working strokes, T/F labels |
 | **Block/Code Flow** (jungrapht) | `ProgramGraphDisplayOptions`, `BlockGraphTask` | Edge label rendering, flow labels |
 | **Call Graph** (Jung) | `FcgComponent`, `FcgEdge`, `FcgProvider`, `FcgTooltipProvider` | Call counts, rich tooltips |
-| **Plugins** (Java) | Triage, Context Sidebar, Documentation, Bulk Export | New analysis features |
+| **Plugins** (Java) | Triage, Context Sidebar, Documentation, Bulk Export, Variable Tracker, Export C Code | New analysis features |
 | **Branding** | Icons, splash, app name, titles | Binhunters identity |
 
 ---
@@ -209,10 +228,10 @@ Binhunters modifies Ghidra at the source level across multiple layers:
 See [CHANGELOG.md](CHANGELOG.md) for the complete list of every file modified with detailed descriptions.
 
 ### Quick Count
-- **~30 files modified** across the Ghidra source
-- **~10 new files created** (plugins, providers, content)
+- **~35 files modified** across the Ghidra source
+- **~13 new files created** (plugins, providers, content)
 - **C++ decompiler rules** in `ruleaction.cc` / `ruleaction.hh`
-- **Java plugins** in `Features/Base/`, `Features/FunctionGraph/`, `Features/GraphFunctionCalls/`, `Features/GraphServices/`, `Features/ProgramGraph/`
+- **Java plugins** in `Features/Base/`, `Features/Decompiler/`, `Features/FunctionGraph/`, `Features/GraphFunctionCalls/`, `Features/GraphServices/`, `Features/ProgramGraph/`
 - **Icons** in `Framework/Gui/`, `Features/Base/`, `RuntimeScripts/`
 
 ---

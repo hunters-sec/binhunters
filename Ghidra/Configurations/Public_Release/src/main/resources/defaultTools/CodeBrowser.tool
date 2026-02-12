@@ -13,6 +13,9 @@
         <PACKAGE NAME="Documentation">
             <INCLUDE CLASS="ghidra.app.plugin.core.documentation.DocumentationPlugin" />
         </PACKAGE>
+        <PACKAGE NAME="Variable Tracker">
+            <INCLUDE CLASS="ghidra.app.plugin.core.variabletracker.VariableTrackerPlugin" />
+        </PACKAGE>
         <ROOT_NODE X_POS="409" Y_POS="179" WIDTH="1637" HEIGHT="931" EX_STATE="0" FOCUSED_OWNER="CodeBrowserPlugin" FOCUSED_NAME="Listing" FOCUSED_TITLE="Listing: ">
             <SPLIT_NODE WIDTH="1621" HEIGHT="816" DIVIDER_LOCATION="148" ORIENTATION="VERTICAL">
                 <COMPONENT_NODE TOP_INFO="0">
@@ -119,6 +122,11 @@
             <WINDOW_NODE X_POS="-1" Y_POS="-1" WIDTH="0" HEIGHT="0">
                 <COMPONENT_NODE TOP_INFO="0">
                     <COMPONENT_INFO NAME="Documentation" OWNER="DocumentationPlugin" TITLE="Binhunters Documentation" ACTIVE="false" GROUP="Default" INSTANCE_ID="3207819978370941600" />
+                </COMPONENT_NODE>
+            </WINDOW_NODE>
+            <WINDOW_NODE X_POS="-1" Y_POS="-1" WIDTH="0" HEIGHT="0">
+                <COMPONENT_NODE TOP_INFO="0">
+                    <COMPONENT_INFO NAME="Variable Tracker" OWNER="VariableTrackerPlugin" TITLE="Variable Tracker" ACTIVE="false" GROUP="Default" INSTANCE_ID="3207819978370941700" />
                 </COMPONENT_NODE>
             </WINDOW_NODE>
         </ROOT_NODE>

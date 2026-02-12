@@ -43,6 +43,9 @@ public class DocumentationContent {
 			"<li><b>Triage Panel</b> &mdash; instant binary overview with metadata, sections, strings, and import categories</li>" +
 			"<li><b>Context Sidebar</b> &mdash; live context that updates as you navigate</li>" +
 			"<li><b>Bulk Export</b> &mdash; export all decompiled code to organized directory structures</li>" +
+			"<li><b>Export C Code</b> &mdash; export entire binary as single C file, by namespace, or individual functions</li>" +
+			"<li><b>Variable Tracker</b> &mdash; identify shared globals and cross-function data dependencies</li>" +
+			"<li><b>Language Detection</b> &mdash; automatically identifies C, C++, ObjC, Swift, Rust, Go</li>" +
 			"<li><b>Enhanced Graphs</b> &mdash; flow labels, branch labels (T/F), call-count indicators</li>" +
 			"<li><b>Improved Decompiler</b> &mdash; fewer unnecessary casts, better variable names</li>" +
 			"<li><b>Interactive Console</b> &mdash; Python REPL with full Ghidra API access</li>" +
@@ -978,6 +981,81 @@ public class DocumentationContent {
 			"<li>Return values incorporate function names (e.g., <code>mallocResult</code>)</li>" +
 			"<li>Function parameters use type-based naming when possible</li>" +
 			"</ul>"
+		));
+
+		docs.put("Binhunters Features/Variable Tracker", html(
+			"<h1>Variable Tracker</h1>" +
+			"<p>The Variable Tracker panel (<code>Analysis &gt; Variable Tracker</code>) identifies " +
+			"cross-function variable usage and shared data dependencies.</p>" +
+			"<h2>Three Views</h2>" +
+			"<h3>Global Variables Tab</h3>" +
+			"<p>Scans all global variables and shows which functions reference each one. " +
+			"Sorted by usage count &mdash; variables used by many functions appear first.</p>" +
+			"<ul>" +
+			"<li><span style='color:red'>Red</span> = used by 10+ functions (critical shared state)</li>" +
+			"<li><span style='color:orange'>Orange</span> = used by 5-9 functions (important)</li>" +
+			"<li><span style='color:blue'>Blue</span> = used by 2-4 functions (notable)</li>" +
+			"</ul>" +
+			"<h3>Current Function Tab</h3>" +
+			"<p>Shows detailed variable information for the currently selected function:</p>" +
+			"<ul>" +
+			"<li>Parameters with call-site information (who passes values)</li>" +
+			"<li>Local variables</li>" +
+			"<li>Global data accessed (with other functions that share access)</li>" +
+			"<li>Strings referenced</li>" +
+			"<li>Data connections showing which other functions share variables</li>" +
+			"</ul>" +
+			"<h3>Shared Data Tab</h3>" +
+			"<p>Shows variables used by 2 or more functions. These are the key data dependencies " +
+			"that connect different parts of the program.</p>" +
+			"<div class='tip'><b>Tip:</b> Use the Variable Tracker to quickly identify global configuration, " +
+			"state machines, and shared buffers that multiple functions operate on.</div>"
+		));
+
+		docs.put("Binhunters Features/Export C Code", html(
+			"<h1>Export C Code</h1>" +
+			"<p>Binhunters provides multiple ways to export decompiled C code:</p>" +
+			"<h2>Export C Code... (New)</h2>" +
+			"<p>Access via the decompiler's menu. Provides three modes:</p>" +
+			"<ul>" +
+			"<li><b>Entire Binary (single file)</b> &mdash; exports all functions into one <code>.c</code> file " +
+			"with type definitions, forward declarations, and organized function implementations</li>" +
+			"<li><b>By Namespace</b> &mdash; creates one <code>.c</code> file per namespace/class, plus a " +
+			"shared <code>types.h</code> header</li>" +
+			"<li><b>Current Function</b> &mdash; quick export of just the function you're looking at</li>" +
+			"</ul>" +
+			"<h2>Export All Decompiled Code</h2>" +
+			"<p>The original bulk export creates a full directory structure with functions, namespaces, " +
+			"categories, imports, strings, and types.</p>" +
+			"<h2>Language Detection</h2>" +
+			"<p>The export automatically detects the source language (C, C++, Objective-C, Swift, Rust, Go) " +
+			"by analyzing symbol patterns, section names, and import libraries.</p>"
+		));
+
+		docs.put("Binhunters Features/Language Detection", html(
+			"<h1>Language Detection</h1>" +
+			"<p>Binhunters can identify the likely source language of a binary.</p>" +
+			"<h2>How It Works</h2>" +
+			"<p>The detector analyzes:</p>" +
+			"<ul>" +
+			"<li><b>Symbol patterns</b> &mdash; C++ name mangling (_Z prefixes, :: operators), ObjC messaging " +
+			"patterns, Swift/Rust/Go naming conventions</li>" +
+			"<li><b>Section names</b> &mdash; __objc_*, __swift*, .gopclntab</li>" +
+			"<li><b>Binary format</b> &mdash; DEX (Android), .class (Java), .NET CLR</li>" +
+			"<li><b>Import libraries</b> &mdash; language-specific runtime libraries</li>" +
+			"</ul>" +
+			"<h2>Supported Languages</h2>" +
+			"<table>" +
+			"<tr><th>Language</th><th>Key Indicators</th></tr>" +
+			"<tr><td>C</td><td>Default when no other language detected</td></tr>" +
+			"<tr><td>C++</td><td>Mangled names (_Z*), virtual tables, std:: symbols</td></tr>" +
+			"<tr><td>Objective-C</td><td>objc_msgSend, +[Class method], _OBJC_ symbols</td></tr>" +
+			"<tr><td>Swift</td><td>_$s prefixes, Swift runtime symbols</td></tr>" +
+			"<tr><td>Rust</td><td>$LT$/$GT$ encoding, __rust_ symbols, core.. prefixes</td></tr>" +
+			"<tr><td>Go</td><td>go.* symbols, runtime.*, .gopclntab section</td></tr>" +
+			"</table>" +
+			"<p>The Triage Panel shows the detected language with confidence level " +
+			"(high/medium/low).</p>"
 		));
 
 		// ============================
