@@ -15,6 +15,10 @@
  */
 package ghidra.app.plugin.core.decompile.actions;
 
+import java.awt.Color;
+import java.awt.Component;
+import java.awt.Dimension;
+import java.awt.Font;
 import java.io.*;
 import java.util.*;
 
@@ -74,48 +78,152 @@ public class ExportCCodeAction extends AbstractDecompilerAction {
 	protected void decompilerActionPerformed(DecompilerActionContext context) {
 		Program program = context.getProgram();
 
-		// Show export options dialog
-		String[] options = {
-			"Entire Binary (single .c file)",
-			"By Namespace (one file per namespace)",
-			"Current Function Only"
-		};
+		// Build export options dialog with filter checkboxes
+		JPanel dialogPanel = new JPanel();
+		dialogPanel.setLayout(new BoxLayout(dialogPanel, BoxLayout.Y_AXIS));
+		dialogPanel.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
 
-		int choice = JOptionPane.showOptionDialog(
-			context.getDecompilerPanel(),
-			"Choose export mode:",
-			"Export C Code - Binhunters",
-			JOptionPane.DEFAULT_OPTION,
-			JOptionPane.QUESTION_MESSAGE,
-			null,
-			options,
-			options[0]);
+		JLabel modeLabel = new JLabel("Export Mode:");
+		modeLabel.setFont(modeLabel.getFont().deriveFont(Font.BOLD));
+		modeLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
+		dialogPanel.add(modeLabel);
+		dialogPanel.add(Box.createVerticalStrut(5));
 
-		if (choice < 0) {
-			return; // Cancelled
+		JRadioButton rbSingleFile = new JRadioButton("Entire Binary (single .c file)", true);
+		JRadioButton rbByNamespace = new JRadioButton("By Namespace (one file per namespace)");
+		JRadioButton rbCurrentFunc = new JRadioButton("Current Function Only");
+		ButtonGroup modeGroup = new ButtonGroup();
+		modeGroup.add(rbSingleFile);
+		modeGroup.add(rbByNamespace);
+		modeGroup.add(rbCurrentFunc);
+
+		rbSingleFile.setAlignmentX(Component.LEFT_ALIGNMENT);
+		rbByNamespace.setAlignmentX(Component.LEFT_ALIGNMENT);
+		rbCurrentFunc.setAlignmentX(Component.LEFT_ALIGNMENT);
+		dialogPanel.add(rbSingleFile);
+		dialogPanel.add(rbByNamespace);
+		dialogPanel.add(rbCurrentFunc);
+
+		dialogPanel.add(Box.createVerticalStrut(15));
+		JSeparator sep = new JSeparator();
+		sep.setAlignmentX(Component.LEFT_ALIGNMENT);
+		sep.setMaximumSize(new Dimension(Integer.MAX_VALUE, 2));
+		dialogPanel.add(sep);
+		dialogPanel.add(Box.createVerticalStrut(10));
+
+		JLabel filterLabel = new JLabel("Filter Options:");
+		filterLabel.setFont(filterLabel.getFont().deriveFont(Font.BOLD));
+		filterLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
+		dialogPanel.add(filterLabel);
+		dialogPanel.add(Box.createVerticalStrut(5));
+
+		JCheckBox cbSkipUndefined = new JCheckBox(
+			"Skip undefined/auto-named stubs (FUN_*, thunk_FUN_*)", true);
+		cbSkipUndefined.setAlignmentX(Component.LEFT_ALIGNMENT);
+		dialogPanel.add(cbSkipUndefined);
+
+		JCheckBox cbSkipThunks = new JCheckBox(
+			"Skip thunks and external stubs", true);
+		cbSkipThunks.setAlignmentX(Component.LEFT_ALIGNMENT);
+		dialogPanel.add(cbSkipThunks);
+
+		JCheckBox cbSkipEmpty = new JCheckBox(
+			"Skip functions with empty/failed decompilation", true);
+		cbSkipEmpty.setAlignmentX(Component.LEFT_ALIGNMENT);
+		dialogPanel.add(cbSkipEmpty);
+
+		dialogPanel.add(Box.createVerticalStrut(10));
+
+		// Count functions to give the user an idea
+		FunctionManager funcMgr = program.getFunctionManager();
+		int totalFuncs = funcMgr.getFunctionCount();
+		int autoFuncs = 0;
+		int thunkFuncs = 0;
+		FunctionIterator iter = funcMgr.getFunctions(true);
+		while (iter.hasNext()) {
+			Function f = iter.next();
+			if (f.getName().startsWith("FUN_") || f.getName().startsWith("thunk_FUN_")) {
+				autoFuncs++;
+			}
+			if (f.isThunk() || f.isExternal()) {
+				thunkFuncs++;
+			}
 		}
 
-		if (choice == MODE_CURRENT_FUNCTION) {
-			// Export just the current function
+		JLabel statsLabel = new JLabel(String.format(
+			"<html><i>Binary has %d functions: %d named, %d auto-generated (FUN_*), %d thunks/external</i></html>",
+			totalFuncs, totalFuncs - autoFuncs - thunkFuncs, autoFuncs, thunkFuncs));
+		statsLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
+		statsLabel.setForeground(Color.GRAY);
+		dialogPanel.add(statsLabel);
+
+		int result = JOptionPane.showConfirmDialog(
+			context.getDecompilerPanel(),
+			dialogPanel,
+			"Export C Code - Binhunters",
+			JOptionPane.OK_CANCEL_OPTION,
+			JOptionPane.PLAIN_MESSAGE);
+
+		if (result != JOptionPane.OK_OPTION) {
+			return;
+		}
+
+		// Build filter settings
+		ExportFilter filter = new ExportFilter(
+			cbSkipUndefined.isSelected(),
+			cbSkipThunks.isSelected(),
+			cbSkipEmpty.isSelected());
+
+		if (rbCurrentFunc.isSelected()) {
 			exportCurrentFunction(context);
 		}
-		else if (choice == MODE_SINGLE_FILE) {
-			// Export everything to one file
+		else if (rbSingleFile.isSelected()) {
 			File file = chooseOutputFile(context, program.getName() + "_full.c");
 			if (file != null) {
 				ExportSingleFileTask task =
-					new ExportSingleFileTask(program, file, context);
+					new ExportSingleFileTask(program, file, context, filter);
 				context.getTool().execute(task, 500);
 			}
 		}
-		else if (choice == MODE_BY_NAMESPACE) {
-			// Export to directory with one file per namespace
+		else if (rbByNamespace.isSelected()) {
 			File dir = chooseOutputDirectory(context);
 			if (dir != null) {
 				ExportByNamespaceTask task =
-					new ExportByNamespaceTask(program, dir, context);
+					new ExportByNamespaceTask(program, dir, context, filter);
 				context.getTool().execute(task, 500);
 			}
+		}
+	}
+
+	/**
+	 * Filter settings for export.
+	 */
+	private static class ExportFilter {
+		final boolean skipUndefined;
+		final boolean skipThunks;
+		final boolean skipEmpty;
+
+		ExportFilter(boolean skipUndefined, boolean skipThunks, boolean skipEmpty) {
+			this.skipUndefined = skipUndefined;
+			this.skipThunks = skipThunks;
+			this.skipEmpty = skipEmpty;
+		}
+
+		boolean shouldInclude(FuncResult result) {
+			if (result == null) {
+				return false;
+			}
+			if (skipEmpty && (result.cCode == null || result.cCode.isEmpty())) {
+				return false;
+			}
+			if (skipUndefined && (result.name.startsWith("FUN_") ||
+				result.name.startsWith("thunk_FUN_"))) {
+				return false;
+			}
+			if (skipThunks && result.isThunk) {
+				return false;
+			}
+			return true;
 		}
 	}
 
@@ -216,13 +324,15 @@ public class ExportCCodeAction extends AbstractDecompilerAction {
 		private final Program program;
 		private final File outputFile;
 		private final DecompilerActionContext context;
+		private final ExportFilter filter;
 
 		ExportSingleFileTask(Program program, File outputFile,
-				DecompilerActionContext context) {
+				DecompilerActionContext context, ExportFilter filter) {
 			super("Exporting C Code (Single File)", true, true, true);
 			this.program = program;
 			this.outputFile = outputFile;
 			this.context = context;
+			this.filter = filter;
 		}
 
 		@Override
@@ -254,6 +364,18 @@ public class ExportCCodeAction extends AbstractDecompilerAction {
 			// Sort by address for clean output
 			results.sort((a, b) -> a.address.compareTo(b.address));
 
+			// Apply filter
+			List<FuncResult> filtered = new ArrayList<>();
+			List<FuncResult> skipped = new ArrayList<>();
+			for (FuncResult r : results) {
+				if (filter.shouldInclude(r)) {
+					filtered.add(r);
+				}
+				else if (r != null) {
+					skipped.add(r);
+				}
+			}
+
 			// Step 2: Write the single file
 			monitor.setMessage("Writing C code...");
 			try (PrintWriter writer = new PrintWriter(new FileOutputStream(outputFile))) {
@@ -277,7 +399,10 @@ public class ExportCCodeAction extends AbstractDecompilerAction {
 				writer.println(
 					" * Image Base: " + program.getImageBase());
 				writer.println(
-					" * Functions: " + totalFunctions);
+					" * Total Functions: " + totalFunctions);
+				writer.println(
+					" * Exported: " + filtered.size() +
+					" (skipped " + skipped.size() + " stubs/thunks)");
 				writer.println(
 					" * ============================================================================");
 				writer.println(" */");
@@ -298,14 +423,23 @@ public class ExportCCodeAction extends AbstractDecompilerAction {
 					return;
 				}
 
-				// Forward declarations (prototypes)
+				// Forward declarations (prototypes) — only for included functions
 				writer.println();
 				writer.println("/* ========== Forward Declarations ========== */");
 				writer.println();
-				for (FuncResult result : results) {
+				for (FuncResult result : filtered) {
 					if (result.cCode != null && result.prototype != null) {
 						writer.println(result.prototype + ";");
 					}
+				}
+
+				// If there are skipped functions, add a comment noting them
+				if (!skipped.isEmpty()) {
+					writer.println();
+					writer.println("/* " + skipped.size() +
+						" auto-generated/stub functions were excluded from this export.");
+					writer.println(
+						" * To include them, uncheck the filter options in the export dialog. */");
 				}
 				writer.println();
 				monitor.incrementProgress(1);
@@ -315,7 +449,7 @@ public class ExportCCodeAction extends AbstractDecompilerAction {
 				writer.println();
 
 				int exported = 0;
-				for (FuncResult result : results) {
+				for (FuncResult result : filtered) {
 					if (monitor.isCancelled()) {
 						return;
 					}
@@ -344,13 +478,14 @@ public class ExportCCodeAction extends AbstractDecompilerAction {
 
 				writer.println();
 				writer.println("/* End of decompiled code */");
-				writer.printf("/* Total functions exported: %d / %d */",
-					exported, totalFunctions);
+				writer.printf("/* Exported: %d functions (skipped %d stubs/thunks out of %d total) */",
+					exported, skipped.size(), totalFunctions);
 				writer.println();
 			}
 
 			Msg.info(ExportCCodeAction.class,
-				"Exported C code to: " + outputFile.getAbsolutePath());
+				"Exported " + filtered.size() + " functions to: " + outputFile.getAbsolutePath() +
+				" (skipped " + skipped.size() + " stubs/thunks)");
 		}
 	}
 
@@ -362,13 +497,15 @@ public class ExportCCodeAction extends AbstractDecompilerAction {
 		private final Program program;
 		private final File outputDir;
 		private final DecompilerActionContext context;
+		private final ExportFilter filter;
 
 		ExportByNamespaceTask(Program program, File outputDir,
-				DecompilerActionContext context) {
+				DecompilerActionContext context, ExportFilter filter) {
 			super("Exporting C Code (By Namespace)", true, true, true);
 			this.program = program;
 			this.outputDir = outputDir;
 			this.context = context;
+			this.filter = filter;
 		}
 
 		@Override
@@ -397,9 +534,14 @@ public class ExportCCodeAction extends AbstractDecompilerAction {
 				return;
 			}
 
-			// Step 2: Group by namespace
+			// Step 2: Group by namespace (applying filter)
 			Map<String, List<FuncResult>> byNamespace = new LinkedHashMap<>();
+			int skippedCount = 0;
 			for (FuncResult result : results) {
+				if (!filter.shouldInclude(result)) {
+					skippedCount++;
+					continue;
+				}
 				String ns = result.namespace;
 				if (ns == null || ns.isEmpty() || ns.equals("Global") ||
 					ns.equals(program.getName())) {
@@ -511,10 +653,11 @@ public class ExportCCodeAction extends AbstractDecompilerAction {
 
 					Namespace ns = func.getParentNamespace();
 					String namespace = (ns != null && !ns.isGlobal()) ? ns.getName(true) : "";
+					boolean isThunk = func.isThunk() || func.isExternal();
 
 					return new FuncResult(func.getName(),
 						func.getEntryPoint().toString().replace(":", "_"),
-						namespace, cCode, prototype);
+						namespace, cCode, prototype, isThunk);
 				}
 			};
 
@@ -761,14 +904,16 @@ public class ExportCCodeAction extends AbstractDecompilerAction {
 		final String namespace;
 		final String cCode;
 		final String prototype;
+		final boolean isThunk;
 
 		FuncResult(String name, String address, String namespace,
-				String cCode, String prototype) {
+				String cCode, String prototype, boolean isThunk) {
 			this.name = name;
 			this.address = address;
 			this.namespace = namespace;
 			this.cCode = cCode;
 			this.prototype = prototype;
+			this.isThunk = isThunk;
 		}
 	}
 

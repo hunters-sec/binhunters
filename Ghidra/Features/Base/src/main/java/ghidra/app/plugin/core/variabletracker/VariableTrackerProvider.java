@@ -546,6 +546,11 @@ public class VariableTrackerProvider extends ComponentProviderAdapter {
 
 				Address toAddr = ref.getToAddress();
 
+				// Skip non-memory addresses (stack, register) — can't query xrefs
+				if (!toAddr.isMemoryAddress()) {
+					continue;
+				}
+
 				// Skip references to code (functions)
 				if (funcMgr.getFunctionAt(toAddr) != null) {
 					continue;
@@ -744,6 +749,12 @@ public class VariableTrackerProvider extends ComponentProviderAdapter {
 				}
 
 				Address toAddr = ref.getToAddress();
+
+				// Skip non-memory addresses (stack, register) — can't query xrefs
+				if (!toAddr.isMemoryAddress()) {
+					continue;
+				}
+
 				if (funcMgr.getFunctionAt(toAddr) != null) {
 					continue;
 				}
